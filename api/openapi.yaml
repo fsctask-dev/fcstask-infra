@@ -1,0 +1,12 @@
+openapi: 3.0.3
+info:
+  title: Echo API
+  version: "1.0"
+
+paths:
+  /v1/echo:
+    post:
+      operationId: PostV1Echo
+      responses:
+        "200":
+          description: ok

@@ -1,0 +1,52 @@
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.toml
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database files
+*.db
+*.sqlite
+
+# Log files
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build output
+bin/
+dist/
+build/
+
+# Coverage output
+*.cover
+coverage.txt
+coverage.html
+
+internal/api/*.gen.go
+internal/cmd/cmd
