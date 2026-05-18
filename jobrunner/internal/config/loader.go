@@ -26,7 +26,7 @@ func LoadConfig[T interface {
     }
         
     if err := cfg.Validate(); err != nil {
-        return cfg, fmt.Errorf("validation failed: %w", err)
+        return cfg, err
     }
     
     return cfg, nil
