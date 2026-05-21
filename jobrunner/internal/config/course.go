@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"jobrunner/internal/domain/errors"
 	"sort"
 	"strings"
 	"time"
@@ -76,7 +77,7 @@ func (g *CourseUIConfig) Validate() error {
 		strings.HasPrefix(g.TaskURLTemplate, "https://")
 
 	if !isValid {
-		return fmt.Errorf("task_url_template must start with http:// or https://")
+		return errors.NewBadConfig("task_url_template must start with http:// or https://")
 	}
 
 	return nil
@@ -84,7 +85,7 @@ func (g *CourseUIConfig) Validate() error {
 
 func (g *CourseGroupConfig) Validate() error {
 	if g.Name == "" {
-		return fmt.Errorf("group name is required")
+		return errors.NewBadConfig("group name is required")
 	}
 
 	if err := g.validateEnd(); err != nil {
@@ -189,11 +190,11 @@ func (g *CourseGroupConfig) SetEnd(value DeadlineValue) *CourseGroupConfig {
 
 func (g *CourseGroupConfig) validateEnd() error {
 	if g.End.Duration != nil && *g.End.Duration < 0 {
-		return fmt.Errorf("end timedelta <%v> should be positive", *g.End.Duration)
+		return errors.NewBadConfig(fmt.Sprintf("end timedelta <%v> should be positive", *g.End.Duration))
 	}
 
 	if g.End.Time != nil && g.End.Time.Before(g.Start) {
-		return fmt.Errorf("end datetime <%v> should be after the start <%v>", g.End.Time, g.Start)
+		return errors.NewBadConfig(fmt.Sprintf("end datetime <%v> should be after the start <%v>", g.End.Time, g.Start))
 	}
 
 	return nil
@@ -204,11 +205,11 @@ func (g *CourseGroupConfig) validateSteps() error {
 
 	for _, step := range g.Steps {
 		if step.Duration != nil && *step.Duration < 0 {
-			return fmt.Errorf("step timedelta <%v> should be positive", *step.Duration)
+			return errors.NewBadConfig(fmt.Sprintf("step timedelta <%v> should be positive", *step.Duration))
 		}
 
 		if step.Time != nil && (step.Time.Before(g.Start) || step.Time.Equal(g.Start)) {
-			return fmt.Errorf("step datetime <%v> should be after the start <%v>", step.Time, g.Start)
+			return errors.NewBadConfig(fmt.Sprintf("step datetime <%v> should be after the start <%v>", step.Time, g.Start))
 		}
 
 		stepDate := g.resolveToTime(step)
@@ -220,8 +221,8 @@ func (g *CourseGroupConfig) validateSteps() error {
 		}
 
 		if stepDate.Before(lastStepDate) || stepDate.Equal(lastStepDate) {
-			return fmt.Errorf("step datetime/timedelta <%v> should be after the last step <%v>",
-				deadlineValueToString(step), deadlineValueToString(lastStep))
+			return errors.NewBadConfig(fmt.Sprintf("step datetime/timedelta <%v> should be after the last step <%v>",
+				deadlineValueToString(step), deadlineValueToString(lastStep)))
 		}
 
 		lastStep = g.getStepValue(step)
@@ -259,7 +260,7 @@ func (g *CourseGroupConfig) resolveToTimeValue(value interface{}) (time.Time, er
 		}
 
 	default:
-		return time.Time{}, fmt.Errorf("invalid type")
+		return time.Time{}, errors.NewBadConfig("invalid type")
 	}
 
 	return g.Start, nil
@@ -333,7 +334,7 @@ func (c *CourseDeadlinesConfig) FindTask(taskName string) (*CourseGroupConfig, *
 			}
 		}
 	}
-	return nil, nil, fmt.Errorf("task %s not found", taskName)
+	return nil, nil, errors.NewBadConfig(fmt.Sprintf("task %s not found", taskName))
 }
 
 func (c *CourseDeadlinesConfig) GetGroups(enabled *bool, started *bool, now *time.Time) []CourseGroupConfig {
@@ -442,7 +443,7 @@ func (c *CourseDeadlinesConfig) MaxScoreStarted() int {
 func (c *CourseDeadlinesConfig) ReplaceTimezone() error {
 	loc, err := time.LoadLocation(c.Timezone)
 	if err != nil {
-		return fmt.Errorf("failed to load timezone %s: %w", c.Timezone, err)
+		return errors.NewBadConfig(fmt.Sprintf("failed to load timezone %s: %v", c.Timezone, err))
 	}
 
 	for i := range c.Schedule {
@@ -454,14 +455,14 @@ func (c *CourseDeadlinesConfig) ReplaceTimezone() error {
 
 func (c *CourseDeadlinesConfig) validateMaxSubmissions() error {
 	if c.MaxSubmissions != nil && *c.MaxSubmissions <= 0 {
-		return fmt.Errorf("max_submissions should be positive, got %d", *c.MaxSubmissions)
+		return errors.NewBadConfig(fmt.Sprintf("max_submissions should be positive, got %d", *c.MaxSubmissions))
 	}
 	return nil
 }
 
 func (c *CourseDeadlinesConfig) validateSubmissionPenalty() error {
 	if c.SubmissionPenalty < 0 {
-		return fmt.Errorf("submission_penalty should be non-negative, got %f", c.SubmissionPenalty)
+		return errors.NewBadConfig(fmt.Sprintf("submission_penalty should be non-negative, got %f", c.SubmissionPenalty))
 	}
 	return nil
 }
@@ -472,7 +473,7 @@ func (c *CourseDeadlinesConfig) validateTimezone() error {
 	}
 	_, err := time.LoadLocation(c.Timezone)
 	if err != nil {
-		return fmt.Errorf("invalid timezone: %s, error: %w", c.Timezone, err)
+		return errors.NewBadConfig(fmt.Sprintf("invalid timezone: %s, error: %v", c.Timezone, err))
 	}
 	return nil
 }
@@ -483,13 +484,13 @@ func (c *CourseDeadlinesConfig) validateUniqueNames() error {
 
 	for _, group := range c.Schedule {
 		if groupNames[group.Name] {
-			return fmt.Errorf("duplicate group name: %s", group.Name)
+			return errors.NewBadConfig(fmt.Sprintf("duplicate group name: %s", group.Name))
 		}
 		groupNames[group.Name] = true
 
 		for _, task := range group.Tasks {
 			if taskNames[task.Task] {
-				return fmt.Errorf("duplicate task name: %s", task.Task)
+				return errors.NewBadConfig(fmt.Sprintf("duplicate task name: %s", task.Task))
 			}
 			taskNames[task.Task] = true
 		}
@@ -500,11 +501,11 @@ func (c *CourseDeadlinesConfig) validateUniqueNames() error {
 
 func (c *CourseDeadlinesConfig) validateWindow() error {
 	if c.Window != nil && *c.Window <= 0 {
-		return fmt.Errorf("window should be positive, got %d", *c.Window)
+		return errors.NewBadConfig(fmt.Sprintf("window should be positive, got %d", *c.Window))
 	}
 
 	if c.Window != nil && c.Deadlines != DeadlineInterpolate {
-		return fmt.Errorf("window can be applied only with interpolate deadline type")
+		return errors.NewBadConfig("window can be applied only with interpolate deadline type")
 	}
 
 	return nil
@@ -536,8 +537,8 @@ func (c *CourseDeadlinesConfig) validateInterpolateDeadlines() error {
 			right := dates[i+1]
 
 			if left.Add(time.Duration(windowDays) * 24 * time.Hour).After(right) {
-				return fmt.Errorf("window is too large for group %s: interval between %v and %v is too small",
-					group.Name, left, right)
+				return errors.NewBadConfig(fmt.Sprintf("window is too large for group %s: interval between %v and %v is too small",
+					group.Name, left, right))
 			}
 		}
 	}
@@ -559,16 +560,16 @@ func (s *CourseSettingsConfig) SetDefaults() {
 
 func (s *CourseSettingsConfig) Validate() error {
 	if s.CourseName == "" {
-		return fmt.Errorf("course name is required")
+		return errors.NewBadConfig("course name is required")
 	}
 	if s.GitlabBaseURL == "" {
-		return fmt.Errorf("gitlab base URL is required")
+		return errors.NewBadConfig("gitlab base URL is required")
 	}
 	if s.PublicRepo == "" {
-		return fmt.Errorf("public repo is required")
+		return errors.NewBadConfig("public repo is required")
 	}
 	if s.StudentsGroup == "" {
-		return fmt.Errorf("students group is required")
+		return errors.NewBadConfig("students group is required")
 	}
 	return nil
 }
@@ -588,15 +589,15 @@ func (c *CourseConfig) Validate() error {
 	}
 
 	if err := c.Settings.Validate(); err != nil {
-		return fmt.Errorf("settings validation failed: %w", err)
+		return err
 	}
 
 	if err := c.UI.Validate(); err != nil {
-		return fmt.Errorf("ui validation failed: %w", err)
+		return err
 	}
 
 	if err := c.Deadlines.Validate(); err != nil {
-		return fmt.Errorf("deadlines validation failed: %w", err)
+		return err
 	}
 
 	return nil
@@ -604,7 +605,7 @@ func (c *CourseConfig) Validate() error {
 
 func (c *CourseConfig) validateVersion() error {
 	if c.Version != 1 {
-		return fmt.Errorf("only version 1 is supported for CourseConfig, got %d", c.Version)
+		return errors.NewBadConfig(fmt.Sprintf("only version 1 is supported for CourseConfig, got %d", c.Version))
 	}
 	return nil
 }

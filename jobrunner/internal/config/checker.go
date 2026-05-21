@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"jobrunner/internal/domain/errors"
 	"strings"
 )
 
@@ -131,39 +132,38 @@ func (c *CheckerConfig) SetDefaults() {
 
 func (c *CheckerConfig) Validate() error {
 	if err := c.validateVersion(); err != nil {
-		return err
+		return errors.NewBadConfig(err.Error())
 	}
 
 	if c.Structure == nil {
-		return fmt.Errorf("structure is required")
+		return errors.NewBadConfig("structure is required")
 	}
 
 	if err := c.Structure.Validate(); err != nil {
-		return fmt.Errorf("structure validation failed: %w", err)
+		return errors.NewBadConfig(fmt.Sprintf("structure validation failed: %v", err))
 	}
 
 	if c.Export == nil {
-		return fmt.Errorf("export is required")
+		return errors.NewBadConfig("export is required")
 	}
 
 	if err := c.Export.Validate(); err != nil {
-		return fmt.Errorf("export validation failed: %w", err)
+		return errors.NewBadConfig(fmt.Sprintf("export validation failed: %v", err))
 	}
 
 	if c.Testing == nil {
-		return fmt.Errorf("testing is required")
+		return errors.NewBadConfig("testing is required")
 	}
 
 	if err := c.Testing.Validate(); err != nil {
-		return fmt.Errorf("testing validation failed: %w", err)
+		return errors.NewBadConfig(fmt.Sprintf("testing validation failed: %v", err))
 	}
 
 	return nil
 }
-
 func (c *CheckerConfig) validateVersion() error {
 	if c.Version != 1 {
-		return fmt.Errorf("only version 1 is supported for CheckerConfig, got %d", c.Version)
+		return errors.NewBadConfig(fmt.Sprintf("only version 1 is supported for CheckerConfig, got %d", c.Version))
 	}
 	return nil
 }
@@ -174,7 +174,7 @@ func (s *CheckerStructureConfig) Validate() error {
 
 	for _, pattern := range allPatterns {
 		if strings.Contains(pattern, "**") {
-			return fmt.Errorf("pattern '%s' contains '**' which is not allowed", pattern)
+			return errors.NewBadStructure(fmt.Sprintf("pattern '%s' contains '**' which is not allowed", pattern))
 		}
 	}
 
@@ -183,21 +183,21 @@ func (s *CheckerStructureConfig) Validate() error {
 
 func (e *CheckerExportConfig) Validate() error {
 	if e.Destination == "" {
-		return fmt.Errorf("destination is required")
+		return errors.NewBadConfig("destination is required")
 	}
 
 	if !strings.HasPrefix(e.Destination, "http://") &&
 		!strings.HasPrefix(e.Destination, "https://") &&
 		!strings.HasPrefix(e.Destination, "git@") &&
 		!strings.HasPrefix(e.Destination, "ssh://") {
-		return fmt.Errorf("destination must be a valid URL (http://, https://, git@, ssh://)")
+		return errors.NewBadConfig("destination must be a valid URL (http://, https://, git@, ssh://)")
 	}
 
 	switch e.Templates {
 	case TemplateTypeSearch, TemplateTypeCreate, TemplateTypeSearchOrCreate:
 		return nil
 	default:
-		return fmt.Errorf("invalid template type: %s, must be one of: search, create, search_or_create", e.Templates)
+		return errors.NewBadConfig(fmt.Sprintf("invalid template type: %s, must be one of: search, create, search_or_create", e.Templates))
 	}
 }
 
@@ -206,19 +206,19 @@ func (t *CheckerTestingConfig) Validate() error {
 	case ChangesDetectionBranchName, ChangesDetectionCommitMessage,
 		ChangesDetectionLastCommitChanges, ChangesDetectionFilesChanged:
 	default:
-		return fmt.Errorf("invalid changes_detection type: %s", t.ChangesDetection)
+		return errors.NewBadConfig(fmt.Sprintf("invalid changes_detection type: %s", t.ChangesDetection))
 	}
 
 	if err := validatePipeline(t.GlobalPipeline); err != nil {
-		return fmt.Errorf("global_pipeline validation failed: %w", err)
+		return errors.NewBadConfig(fmt.Sprintf("global_pipeline validation failed: %v", err))
 	}
 
 	if err := validatePipeline(t.TasksPipeline); err != nil {
-		return fmt.Errorf("tasks_pipeline validation failed: %w", err)
+		return errors.NewBadConfig(fmt.Sprintf("tasks_pipeline validation failed: %v", err))
 	}
 
 	if err := validatePipeline(t.ReportPipeline); err != nil {
-		return fmt.Errorf("report_pipeline validation failed: %w", err)
+		return errors.NewBadConfig(fmt.Sprintf("report_pipeline validation failed: %v", err))
 	}
 
 	return nil
@@ -229,16 +229,16 @@ func validatePipeline(pipeline []PipelineStageConfig) error {
 
 	for i, stage := range pipeline {
 		if stage.Name == "" {
-			return fmt.Errorf("stage %d: name is required", i)
+			return errors.NewBadConfig(fmt.Sprintf("stage %d: name is required", i))
 		}
 
 		if stageNames[stage.Name] {
-			return fmt.Errorf("duplicate stage name: %s", stage.Name)
+			return errors.NewBadConfig(fmt.Sprintf("duplicate stage name: %s", stage.Name))
 		}
 		stageNames[stage.Name] = true
 
 		if stage.Run == "" {
-			return fmt.Errorf("stage %s: run command is required", stage.Name)
+			return errors.NewBadConfig(fmt.Sprintf("stage %s: run command is required", stage.Name))
 		}
 
 		switch stage.Fail {
@@ -246,7 +246,7 @@ func validatePipeline(pipeline []PipelineStageConfig) error {
 		case "":
 			stage.Fail = FailFast
 		default:
-			return fmt.Errorf("stage %s: invalid fail type: %s", stage.Name, stage.Fail)
+			return errors.NewBadConfig(fmt.Sprintf("stage %s: invalid fail type: %s", stage.Name, stage.Fail))
 		}
 	}
 
@@ -269,21 +269,21 @@ func (s *CheckerSubConfig) SetDefaults() {
 
 func (s *CheckerSubConfig) Validate() error {
 	if s.Version != 1 {
-		return fmt.Errorf("only version 1 is supported for CheckerSubConfig, got %d", s.Version)
+		return errors.NewBadConfig(fmt.Sprintf("only version 1 is supported for CheckerSubConfig, got %d", s.Version))
 	}
 
 	if s.Structure != nil {
 		if err := s.Structure.Validate(); err != nil {
-			return fmt.Errorf("structure validation failed: %w", err)
+			return errors.NewBadConfig(fmt.Sprintf("structure validation failed: %v", err))
 		}
 	}
 
 	if err := validatePipeline(s.TaskPipeline); err != nil {
-		return fmt.Errorf("task_pipeline validation failed: %w", err)
+		return errors.NewBadConfig(fmt.Sprintf("task_pipeline validation failed: %v", err))
 	}
 
 	if err := validatePipeline(s.ReportPipeline); err != nil {
-		return fmt.Errorf("report_pipeline validation failed: %w", err)
+		return errors.NewBadConfig(fmt.Sprintf("report_pipeline validation failed: %v", err))
 	}
 
 	return nil
