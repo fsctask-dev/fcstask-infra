@@ -93,26 +93,28 @@ func (e *Exporter) validateTask(task FileSystemTask) error {
 	hasTemplateComments := false
 	hasValidTemplateComments := false
 
-	matches, err := filepath.Glob(filepath.Join(taskFolder, "**", "*"+templateSuffix))
-	if err != nil {
-		return errors.NewBadStructure(fmt.Sprintf("failed to glob template files in %s: %v", taskFolder, err))
-	}
-
-	if len(matches) > 0 {
-		hasTemplateFiles = true
-		for _, templatePath := range matches {
-			originalPath := strings.TrimSuffix(templatePath, templateSuffix)
-			if _, err := os.Stat(originalPath); err != nil {
-				return errors.NewBadStructure(fmt.Sprintf(
-					"template file %s does not have original file %s",
-					templatePath, originalPath,
-				))
-			}
-			hasValidTemplateFiles = true
+	if err := filepath.Walk(taskFolder, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
 		}
+		if !strings.HasSuffix(path, templateSuffix) {
+			return nil
+		}
+		hasTemplateFiles = true
+		originalPath := strings.TrimSuffix(path, templateSuffix)
+		if _, statErr := os.Stat(originalPath); statErr != nil {
+			return errors.NewBadStructure(fmt.Sprintf(
+				"template file %s does not have original file %s",
+				path, originalPath,
+			))
+		}
+		hasValidTemplateFiles = true
+		return nil
+	}); err != nil {
+		return err
 	}
 
-	err = filepath.Walk(taskFolder, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(taskFolder, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -158,8 +160,7 @@ func (e *Exporter) validateTask(task FileSystemTask) error {
 		}
 
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -417,6 +418,10 @@ func (e *Exporter) copyFilesWithConfig(opts copyFilesOptions) error {
 	}
 
 	for _, entry := range entries {
+		if entry.Name() == ".git" {
+			continue
+		}
+
 		path := filepath.Join(opts.root, entry.Name())
 		pathDestination := filepath.Join(opts.destination, entry.Name())
 
