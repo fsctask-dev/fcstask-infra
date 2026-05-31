@@ -26,8 +26,6 @@ func stage(name, run string, fail FailType) PipelineStageConfig {
 	return PipelineStageConfig{Name: name, Run: run, Fail: fail}
 }
 
-// --- CheckerConfig.SetDefaults ---
-
 func TestCheckerConfigSetDefaults_Version(t *testing.T) {
 	c := CheckerConfig{}
 	c.SetDefaults()
@@ -128,7 +126,6 @@ func TestCheckerConfigSetDefaults_NilTestingSkipped(t *testing.T) {
 	}
 }
 
-// --- CheckerConfig.Validate ---
 
 func TestCheckerConfigValidate_Valid(t *testing.T) {
 	c := validCheckerConfig()
@@ -185,7 +182,6 @@ func TestCheckerConfigValidate_MissingTesting(t *testing.T) {
 	}
 }
 
-// --- CheckerStructureConfig.Validate ---
 
 func TestStructureValidate_Valid(t *testing.T) {
 	s := CheckerStructureConfig{
@@ -231,7 +227,6 @@ func TestStructureValidate_GlobStarInPrivate(t *testing.T) {
 	}
 }
 
-// --- CheckerExportConfig.Validate ---
 
 func TestExportValidate_HTTPSDestination(t *testing.T) {
 	e := CheckerExportConfig{Destination: "https://gitlab.com/org/repo", Templates: TemplateTypeSearch}
@@ -298,7 +293,6 @@ func TestExportValidate_EmptyTemplateType(t *testing.T) {
 	}
 }
 
-// --- CheckerTestingConfig.Validate ---
 
 func TestTestingValidate_AllChangesDetectionTypes(t *testing.T) {
 	types := []ChangesDetectionType{
@@ -338,7 +332,6 @@ func TestTestingValidate_WithValidPipelines(t *testing.T) {
 	}
 }
 
-// --- validatePipeline ---
 
 func TestValidatePipeline_Empty(t *testing.T) {
 	if err := validatePipeline(nil); err != nil {
@@ -413,7 +406,6 @@ func TestValidatePipeline_EmptyFailType(t *testing.T) {
 	}
 }
 
-// --- CheckerSubConfig ---
 
 func TestCheckerSubConfigSetDefaults(t *testing.T) {
 	s := CheckerSubConfig{}

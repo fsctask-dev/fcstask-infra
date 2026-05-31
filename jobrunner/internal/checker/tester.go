@@ -40,7 +40,7 @@ type Tester struct {
 	dryRun              bool
 	taskToPercents      map[string][]percentStep
 	deadlinesType       string
-	interpolationWindow float64 // seconds
+	interpolationWindow float64
 }
 
 func NewTester(
@@ -120,7 +120,7 @@ func (t *Tester) Run(tempDir string, tasks []FileSystemTask, report bool, timest
 			ts = t.course.CourseConfig.Deadlines.GetNowWithTimezone()
 		}
 
-		scorePercent := t.getTaskScorePercent(task.Name, ts)
+		scorePercent := t.GetTaskScorePercent(task.Name, ts)
 		taskVars := TaskPipelineVariables{
 			TaskName:         task.Name,
 			TaskSubPath:      task.RelativePath,
@@ -193,7 +193,7 @@ func (t *Tester) getReportPipelineRunner(task FileSystemTask) (*PipelineRunner, 
 	return NewPipelineRunner(pipeline, t.registry, t.verbose)
 }
 
-func (t *Tester) getTaskScorePercent(taskName string, timestamp time.Time) float64 {
+func (t *Tester) GetTaskScorePercent(taskName string, timestamp time.Time) float64 {
 	steps, ok := t.taskToPercents[taskName]
 	if !ok {
 		return 1.0
