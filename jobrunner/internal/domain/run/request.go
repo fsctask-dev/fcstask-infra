@@ -1,11 +1,8 @@
 package run
 
 import (
-    "crypto/sha256"
-    "encoding/hex"
-    "fmt"
-    "strings"
-    "time"
+	"fmt"
+	"time"
 )
 
 type RunRequest struct {
@@ -84,19 +81,6 @@ func (r *RunRequest) Validate() error {
     }
     
     return nil
-}
-
-func (r *RunRequest) IdempotencyKey() string {
-    data := strings.Join([]string{
-        r.StudentID,
-        r.TaskID,
-        r.Submission.URL,
-        r.Submission.GitRepo,
-        string(r.Submission.Inline),
-    }, "|")
-    
-    hash := sha256.Sum256([]byte(data))
-    return hex.EncodeToString(hash[:])
 }
 
 func (r *RunRequest) WithDefaults() *RunRequest {
