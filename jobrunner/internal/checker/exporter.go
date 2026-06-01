@@ -27,14 +27,14 @@ var templateCommentRegex = regexp.MustCompile(`(?s)SOLUTION BEGIN(.*?)SOLUTION E
 func ptr[T any](v T) *T { return &v }
 
 type Exporter struct {
-	course           *Course
-	structureConfig  config.CheckerStructureConfig
-	exportConfig     config.CheckerExportConfig
-	repositoryRoot   string
-	referenceRoot    string
-	subConfigFiles   map[string]*config.CheckerStructureConfig
-	verbose          bool
-	dryRun           bool
+	course          *Course
+	structureConfig config.CheckerStructureConfig
+	exportConfig    config.CheckerExportConfig
+	repositoryRoot  string
+	referenceRoot   string
+	subConfigFiles  map[string]*config.CheckerStructureConfig
+	verbose         bool
+	dryRun          bool
 }
 
 func NewExporter(
@@ -127,7 +127,7 @@ func (e *Exporter) validateTask(task FileSystemTask) error {
 
 		content, err := os.ReadFile(path)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		fileStr := string(content)
@@ -490,7 +490,12 @@ func (e *Exporter) searchForExcludeDueToTemplates(root string, ignoreTemplates b
 	}
 
 	if e.exportConfig.Templates == config.TemplateTypeCreate || e.exportConfig.Templates == config.TemplateTypeSearchOrCreate {
-		entries, _ := os.ReadDir(root)
+		entries, err := os.ReadDir(root)
+
+		if err != nil {
+			return nil, err
+		}
+
 		for _, entry := range entries {
 			if entry.IsDir() {
 				continue
@@ -658,4 +663,3 @@ func copyFile(source, destination string) error {
 
 	return nil
 }
-
