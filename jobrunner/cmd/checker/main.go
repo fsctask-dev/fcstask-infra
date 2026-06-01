@@ -53,7 +53,7 @@ func main() {
 	pf.BoolVar(&verbose, "verbose", false, "verbose pipeline output")
 	pf.BoolVar(&dryRun, "dry-run", false, "print resolved stages without executing plugins")
 
-	root.AddCommand(gradeCmd(), checkCmd())
+	root.AddCommand(gradeCmd(), checkCmd(), exportCmd())
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "checker: %v\n", err)
@@ -225,4 +225,115 @@ func availableTaskNames(course *checker.Course) []string {
 		names = append(names, n)
 	}
 	return names
+}
+
+func exportCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "export",
+		Short: "Export tasks from ref repo (tutor operation)",
+	}
+	cmd.AddCommand(exportPublicCmd(), exportTestingCmd(), exportPrivateCmd())
+	return cmd
+}
+
+func exportPublicCmd() *cobra.Command {
+	var target string
+	var commit bool
+
+	cmd := &cobra.Command{
+		Use:   "public",
+		Short: "Export public student repo, stripping solutions and applying templates",
+		Long: `Copy enabled tasks from ref repo to target directory.
+Solution blocks (SOLUTION BEGIN / SOLUTION END) are stripped.
+.template files replace the originals.
+
+Examples:
+  checker export public --ref-dir ./ref --target ./student-repo
+  checker export public --ref-dir ./ref --target ./student-repo --commit`,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if target == "" {
+				return fmt.Errorf("--target is required")
+			}
+			course, checkerCfg, err := loadCourse()
+			if err != nil {
+				return err
+			}
+			targetAbs, err := filepath.Abs(target)
+			if err != nil {
+				return fmt.Errorf("resolve --target: %w", err)
+			}
+			exp := checker.NewExporter(course, *checkerCfg.Structure, *checkerCfg.Export, verbose, dryRun)
+			if err := exp.Validate(); err != nil {
+				return fmt.Errorf("export validation: %w", err)
+			}
+			if err := exp.ExportPublic(targetAbs, commit, checkerCfg.Export.CommitMessage); err != nil {
+				return err
+			}
+			fmt.Println("OK")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&target, "target", "", "destination directory (required)")
+	cmd.Flags().BoolVar(&commit, "commit", false, "commit and push to remote after export")
+	return cmd
+}
+
+func exportTestingCmd() *cobra.Command {
+	var target string
+
+	cmd := &cobra.Command{
+		Use:   "testing",
+		Short: "Merge ref and student repos into target for local testing",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if target == "" {
+				return fmt.Errorf("--target is required")
+			}
+			course, checkerCfg, err := loadCourse()
+			if err != nil {
+				return err
+			}
+			targetAbs, err := filepath.Abs(target)
+			if err != nil {
+				return fmt.Errorf("resolve --target: %w", err)
+			}
+			exp := checker.NewExporter(course, *checkerCfg.Structure, *checkerCfg.Export, verbose, dryRun)
+			if err := exp.ExportForTesting(targetAbs); err != nil {
+				return err
+			}
+			fmt.Println("OK")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&target, "target", "", "destination directory (required)")
+	return cmd
+}
+
+func exportPrivateCmd() *cobra.Command {
+	var target string
+
+	cmd := &cobra.Command{
+		Use:   "private",
+		Short: "Export clean copy of ref repo (enabled tasks only)",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if target == "" {
+				return fmt.Errorf("--target is required")
+			}
+			course, checkerCfg, err := loadCourse()
+			if err != nil {
+				return err
+			}
+			targetAbs, err := filepath.Abs(target)
+			if err != nil {
+				return fmt.Errorf("resolve --target: %w", err)
+			}
+			exp := checker.NewExporter(course, *checkerCfg.Structure, *checkerCfg.Export, verbose, dryRun)
+			if err := exp.ExportPrivate(targetAbs); err != nil {
+				return err
+			}
+			fmt.Println("OK")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&target, "target", "", "destination directory (required)")
+	return cmd
 }

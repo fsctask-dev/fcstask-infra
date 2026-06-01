@@ -117,7 +117,7 @@ func (e *Exporter) validateTask(task FileSystemTask) error {
 		return err
 	}
 
-	err = filepath.Walk(taskFolder, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(taskFolder, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -163,8 +163,7 @@ func (e *Exporter) validateTask(task FileSystemTask) error {
 		}
 
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -375,6 +374,10 @@ func (e *Exporter) copyFilesWithConfig(opts copyFilesOptions) error {
 	}
 
 	for _, entry := range entries {
+		if entry.Name() == ".git" {
+			continue
+		}
+
 		path := filepath.Join(opts.root, entry.Name())
 		pathDestination := filepath.Join(opts.destination, entry.Name())
 
