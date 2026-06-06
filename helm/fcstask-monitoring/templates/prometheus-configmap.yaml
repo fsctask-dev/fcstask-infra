@@ -31,6 +31,18 @@ data:
         static_configs:
           - targets: ["{{ .Values.scrape.backend.host }}:{{ .Values.scrape.backend.port }}"]
 
+      {{- if .Values.postgresExporter.enabled }}
+      - job_name: postgres-exporter
+        static_configs:
+          - targets: ["{{ include "fcstask-monitoring.postgresExporter.fullname" . }}:9187"]
+      {{- end }}
+
+      {{- if .Values.sqlExporter.enabled }}
+      - job_name: sql-exporter
+        static_configs:
+          - targets: ["{{ include "fcstask-monitoring.sqlExporter.fullname" . }}:9399"]
+      {{- end }}
+
     alerting:
       alertmanagers:
         - static_configs:

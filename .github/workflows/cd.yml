@@ -36,12 +36,22 @@ jobs:
           GRAFANA_CLOUD_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_URL }}
           GRAFANA_CLOUD_REMOTE_WRITE_USERNAME: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_USERNAME }}
           GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD }}
+          DB_HOST: postgres-dev-postgresql-primary.postgres-dev.svc.cluster.local
+          DB_PORT: '5432'
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           helm upgrade --install fcstask-monitoring ./helm/fcstask-monitoring \
             --namespace ${{ env.K8S_NAMESPACE_TEST }} \
             --set global.cluster=fcstask-test \
             --set global.env=test \
             --set scrape.backend.host=fcsapp.fcstask-backend-test.svc.cluster.local \
+            --set database.host="$DB_HOST" \
+            --set database.port="$DB_PORT" \
+            --set database.username="$DB_USERNAME" \
+            --set-string database.password="$DB_PASSWORD" \
+            --set database.database="$DB_NAME" \
             --set grafanaCloud.remoteWriteUrl="$GRAFANA_CLOUD_REMOTE_WRITE_URL" \
             --set grafanaCloud.remoteWriteUsername="$GRAFANA_CLOUD_REMOTE_WRITE_USERNAME" \
             --set-string grafanaCloud.remoteWritePassword="$GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD" \
@@ -77,12 +87,22 @@ jobs:
           GRAFANA_CLOUD_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_URL }}
           GRAFANA_CLOUD_REMOTE_WRITE_USERNAME: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_USERNAME }}
           GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD }}
+          DB_HOST: postgres-prod-postgresql-primary.postgres-prod.svc.cluster.local
+          DB_PORT: '5432'
+          DB_NAME: ${{ secrets.PROD_DB_NAME }}
+          DB_USERNAME: ${{ secrets.PROD_DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           helm upgrade --install fcstask-monitoring ./helm/fcstask-monitoring \
             --namespace ${{ env.K8S_NAMESPACE_PROD }} \
             --set global.cluster=fcstask-prod \
             --set global.env=prod \
             --set scrape.backend.host=fcsapp.fcstask-backend.svc.cluster.local \
+            --set database.host="$DB_HOST" \
+            --set database.port="$DB_PORT" \
+            --set database.username="$DB_USERNAME" \
+            --set-string database.password="$DB_PASSWORD" \
+            --set database.database="$DB_NAME" \
             --set grafanaCloud.remoteWriteUrl="$GRAFANA_CLOUD_REMOTE_WRITE_URL" \
             --set grafanaCloud.remoteWriteUsername="$GRAFANA_CLOUD_REMOTE_WRITE_USERNAME" \
             --set-string grafanaCloud.remoteWritePassword="$GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD" \

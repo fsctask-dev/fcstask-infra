@@ -1,0 +1,56 @@
+{{- if .Values.sqlExporter.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fcstask-monitoring.sqlExporter.fullname" . }}
+  labels:
+    {{- include "fcstask-monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sql-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "fcstask-monitoring.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: sql-exporter
+  template:
+    metadata:
+      labels:
+        {{- include "fcstask-monitoring.labels" . | nindent 8 }}
+        app.kubernetes.io/component: sql-exporter
+    spec:
+      containers:
+        - name: sql-exporter
+          image: "{{ .Values.sqlExporter.image.repository }}:{{ .Values.sqlExporter.image.tag }}"
+          imagePullPolicy: {{ .Values.sqlExporter.image.pullPolicy }}
+          args:
+            - --config.file=/etc/sql_exporter/sql_exporter.yaml
+          ports:
+            - name: metrics
+              containerPort: 9399
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: {{ include "fcstask-monitoring.fullname" . }}-exporters
+          volumeMounts:
+            - name: config
+              mountPath: /etc/sql_exporter
+              readOnly: true
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "fcstask-monitoring.sqlExporter.fullname" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

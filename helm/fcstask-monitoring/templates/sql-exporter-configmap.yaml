@@ -1,0 +1,14 @@
+{{- if .Values.sqlExporter.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fcstask-monitoring.sqlExporter.fullname" . }}
+  labels:
+    {{- include "fcstask-monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sql-exporter
+data:
+  sql_exporter.yaml: |
+{{ .Files.Get "files/sql_exporter.yaml" | indent 4 }}
+  pg_fcstask.collector.yaml: |
+{{ .Files.Get "files/pg_fcstask.collector.yaml" | indent 4 }}
+{{- end }}

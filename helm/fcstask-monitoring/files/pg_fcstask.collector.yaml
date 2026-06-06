@@ -1,0 +1,176 @@
+collector_name: pg_fcstask
+min_interval: 60s
+
+metrics:
+  - metric_name: fcstask_pg_users_total
+    type: gauge
+    help: 'Total non-deleted users'
+    values: [users_total]
+    query_ref: q_users_total
+
+  - metric_name: fcstask_pg_users_signed_up_24h
+    type: gauge
+    help: 'Users created in the last 24 hours'
+    values: [users_24h]
+    query_ref: q_users_signed_up_24h
+
+  - metric_name: fcstask_pg_users_active_24h
+    type: gauge
+    help: 'Distinct users with session activity in the last 24 hours'
+    values: [users_active]
+    query_ref: q_users_active_24h
+
+  - metric_name: fcstask_pg_sessions_active
+    type: gauge
+    help: 'Sessions touched in the last 24 hours (proxy for active)'
+    values: [sessions_active]
+    query_ref: q_sessions_active
+
+  - metric_name: fcstask_pg_courses_total
+    type: gauge
+    help: 'Total non-deleted courses'
+    values: [courses_total]
+    query_ref: q_courses_total
+
+  - metric_name: fcstask_pg_courses_active
+    type: gauge
+    help: 'Courses currently active (start <= now <= end OR open-ended)'
+    values: [courses_active]
+    query_ref: q_courses_active
+
+  - metric_name: fcstask_pg_homework_total
+    type: gauge
+    help: 'Total homework rows'
+    values: [homework_total]
+    query_ref: q_homework_total
+
+  - metric_name: fcstask_pg_homework_published_total
+    type: gauge
+    help: 'Homework with is_public = true'
+    values: [homework_published]
+    query_ref: q_homework_published_total
+
+  - metric_name: fcstask_pg_tasks_total
+    type: gauge
+    help: 'Total tasks rows'
+    values: [tasks_total]
+    query_ref: q_tasks_total
+
+  - metric_name: fcstask_pg_deadlines_open
+    type: gauge
+    help: 'Deadlines in the future (due_date >= now)'
+    values: [deadlines_open]
+    query_ref: q_deadlines_open
+
+  - metric_name: fcstask_pg_deadlines_overdue
+    type: gauge
+    help: 'Deadlines in the past (due_date < now), non-deleted'
+    values: [deadlines_overdue]
+    query_ref: q_deadlines_overdue
+
+  - metric_name: fcstask_pg_scores_total
+    type: gauge
+    help: 'Total recorded student task scores'
+    values: [scores_total]
+    query_ref: q_scores_total
+
+  - metric_name: fcstask_pg_scores_passed_total
+    type: gauge
+    help: 'Scores with is_passed=true'
+    values: [scores_passed]
+    query_ref: q_scores_passed_total
+
+  - metric_name: fcstask_pg_scores_recorded_24h
+    type: gauge
+    help: 'Scores updated in the last 24 hours (proxy for recorded)'
+    values: [scores_24h]
+    query_ref: q_scores_24h
+
+  - metric_name: fcstask_pg_admin_audit_events_24h
+    type: gauge
+    help: 'Admin audit events in the last 24 hours'
+    values: [audit_24h]
+    query_ref: q_admin_audit_24h
+
+queries:
+  - query_name: q_users_total
+    query: |
+      SELECT count(*) AS users_total FROM users WHERE deleted_at IS NULL;
+
+  - query_name: q_users_signed_up_24h
+    query: |
+      SELECT count(*) AS users_24h
+      FROM users
+      WHERE deleted_at IS NULL AND created_at >= now() - interval '24 hours';
+
+  - query_name: q_users_active_24h
+    query: |
+      SELECT count(DISTINCT user_id) AS users_active
+      FROM sessions
+      WHERE accessed_at >= now() - interval '24 hours';
+
+  - query_name: q_sessions_active
+    query: |
+      SELECT count(*) AS sessions_active
+      FROM sessions
+      WHERE accessed_at >= now() - interval '24 hours';
+
+  - query_name: q_courses_total
+    query: |
+      SELECT count(*) AS courses_total
+      FROM courses
+      WHERE deleted_at IS NULL;
+
+  - query_name: q_courses_active
+    query: |
+      SELECT count(*) AS courses_active
+      FROM courses
+      WHERE deleted_at IS NULL
+        AND (start_date IS NULL OR start_date <= now())
+        AND (end_date IS NULL OR end_date >= now());
+
+  - query_name: q_homework_total
+    query: |
+      SELECT count(*) AS homework_total FROM homework;
+
+  - query_name: q_homework_published_total
+    query: |
+      SELECT count(*) AS homework_published FROM homework WHERE is_public = true;
+
+  - query_name: q_tasks_total
+    query: |
+      SELECT count(*) AS tasks_total FROM tasks;
+
+  - query_name: q_deadlines_open
+    query: |
+      SELECT count(*) AS deadlines_open
+      FROM deadlines
+      WHERE deleted_at IS NULL AND due_date >= now();
+
+  - query_name: q_deadlines_overdue
+    query: |
+      SELECT count(*) AS deadlines_overdue
+      FROM deadlines
+      WHERE deleted_at IS NULL AND due_date < now();
+
+  - query_name: q_scores_total
+    query: |
+      SELECT count(*) AS scores_total FROM student_task_scores;
+
+  - query_name: q_scores_passed_total
+    query: |
+      SELECT count(*) AS scores_passed
+      FROM student_task_scores
+      WHERE is_passed = true;
+
+  - query_name: q_scores_24h
+    query: |
+      SELECT count(*) AS scores_24h
+      FROM student_task_scores
+      WHERE updated_at >= now() - interval '24 hours';
+
+  - query_name: q_admin_audit_24h
+    query: |
+      SELECT count(*) AS audit_24h
+      FROM admin_audit_log
+      WHERE created_at >= now() - interval '24 hours';

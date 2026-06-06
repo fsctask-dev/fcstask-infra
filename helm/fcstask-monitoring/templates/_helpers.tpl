@@ -42,3 +42,15 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- define "fcstask-monitoring.prometheus.alertmanagerTarget" -}}
 {{- printf "%s:9093" (include "fcstask-monitoring.alertmanager.fullname" .) }}
 {{- end }}
+
+{{- define "fcstask-monitoring.postgresExporter.fullname" -}}
+{{- printf "%s-postgres-exporter" (include "fcstask-monitoring.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "fcstask-monitoring.sqlExporter.fullname" -}}
+{{- printf "%s-sql-exporter" (include "fcstask-monitoring.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "fcstask-monitoring.database.dataSourceName" -}}
+{{- printf "postgresql://%s:%s@%s:%v/%s?sslmode=disable" .Values.database.username .Values.database.password .Values.database.host .Values.database.port .Values.database.database }}
+{{- end }}
