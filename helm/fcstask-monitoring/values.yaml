@@ -26,6 +26,27 @@ scrape:
     host: fcsapp.fcstask-backend.svc.cluster.local
     port: 8081
 
+database:
+  host: postgres-prod-postgresql-primary.postgres-prod.svc.cluster.local
+  port: 5432
+  username: ""
+  password: ""
+  database: ""
+
+postgresExporter:
+  enabled: true
+  image:
+    repository: quay.io/prometheuscommunity/postgres-exporter
+    tag: v0.17.1
+    pullPolicy: IfNotPresent
+
+sqlExporter:
+  enabled: true
+  image:
+    repository: burningalchemist/sql_exporter
+    tag: "0.18"
+    pullPolicy: IfNotPresent
+
 resources: {}
 
 nodeSelector: {}

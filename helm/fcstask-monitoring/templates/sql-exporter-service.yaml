@@ -1,0 +1,19 @@
+{{- if .Values.sqlExporter.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "fcstask-monitoring.sqlExporter.fullname" . }}
+  labels:
+    {{- include "fcstask-monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sql-exporter
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9399
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include "fcstask-monitoring.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: sql-exporter
+{{- end }}
