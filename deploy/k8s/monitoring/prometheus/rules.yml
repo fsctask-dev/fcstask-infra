@@ -1,0 +1,98 @@
+groups:
+  - name: fcstask-recording
+    interval: 30s
+    rules:
+      - record: fcstask:http_requests:rate1m
+        expr: sum by (route, method, status) (rate(fcstask_http_requests_total[1m]))
+
+      - record: fcstask:http_request_duration:p95_5m
+        expr: histogram_quantile(0.95, sum by (route, le) (rate(fcstask_http_request_duration_seconds_bucket[5m])))
+
+      - record: fcstask:http_request_duration:p99_5m
+        expr: histogram_quantile(0.99, sum by (route, le) (rate(fcstask_http_request_duration_seconds_bucket[5m])))
+
+      - record: fcstask:http_error_rate_5m
+        expr: |
+          sum(rate(fcstask_http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(fcstask_http_requests_total[5m]))
+
+  - name: fcstask-alerts
+    rules:
+      - alert: ServiceDown
+        expr: up{job="fcstask-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "fcstask-backend is down"
+          description: "Prometheus can't scrape /metrics from host.docker.internal:8081 for 2 minutes."
+
+      - alert: HighHTTP5xxRate
+        expr: fcstask:http_error_rate_5m > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "5xx error rate > 5% on fcstask-backend"
+          description: "Current: {{ $value | humanizePercentage }}"
+
+      - alert: HighHTTPLatencyP95
+        expr: fcstask:http_request_duration:p95_5m > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 latency > 1s for {{ $labels.route }}"
+
+      - alert: DBPoolExhausted
+        expr: fcstask_db_pool_idle == 0 and fcstask_db_pool_open > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DB pool {{ $labels.role }}#{{ $labels.replica_index }} has no idle connections (all in use)"
+          description: "in_use={{ $value }}, no idle connections for 5 minutes — pool likely under-sized or queries are slow."
+
+      - alert: DBPoolWaitGrowing
+        expr: rate(fcstask_db_pool_wait_count_total[5m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DB pool {{ $labels.role }}#{{ $labels.replica_index }} has consistent wait queue"
+          description: "{{ $value }} waits/sec over last 10 minutes — increase pool size or speed up queries."
+
+      - alert: PostgresExporterDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "postgres-exporter is down"
+
+      - alert: SqlExporterDown
+        expr: up{job="sql-exporter"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "sql-exporter is down — business gauges not updated"
+
+  - name: postgres_alert
+    rules:
+      - alert: PostgresTooManyConnections
+        expr: pg_stat_activity_count / pg_settings_max_connections * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Too many PostgreSQL connections"
+
+      - alert: PostgresDeadlocks
+        expr: increase(pg_stat_database_deadlocks[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL deadlocks detected"

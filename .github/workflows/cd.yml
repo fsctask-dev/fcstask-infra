@@ -1,0 +1,90 @@
+name: CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+      - 'release/**'
+
+env:
+  K8S_NAMESPACE_TEST: fcstask-monitoring-test
+  K8S_NAMESPACE_PROD: fcstask-monitoring
+
+jobs:
+  deploy-test-to-k8s:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Configure Kubeconfig
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: Ensure namespace exists
+        run: |
+          kubectl create namespace ${{ env.K8S_NAMESPACE_TEST }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy monitoring to test
+        env:
+          GRAFANA_CLOUD_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_URL }}
+          GRAFANA_CLOUD_REMOTE_WRITE_USERNAME: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_USERNAME }}
+          GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD }}
+        run: |
+          helm upgrade --install fcstask-monitoring ./helm/fcstask-monitoring \
+            --namespace ${{ env.K8S_NAMESPACE_TEST }} \
+            --set global.cluster=fcstask-test \
+            --set global.env=test \
+            --set scrape.backend.host=fcsapp.fcstask-backend-test.svc.cluster.local \
+            --set grafanaCloud.remoteWriteUrl="$GRAFANA_CLOUD_REMOTE_WRITE_URL" \
+            --set grafanaCloud.remoteWriteUsername="$GRAFANA_CLOUD_REMOTE_WRITE_USERNAME" \
+            --set-string grafanaCloud.remoteWritePassword="$GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD" \
+            --wait
+
+  deploy-prod-to-k8s:
+    needs: deploy-test-to-k8s
+
+    if: startsWith(github.ref, 'refs/heads/release/')
+
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Configure Kubeconfig
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: Ensure namespace exists
+        run: |
+          kubectl create namespace ${{ env.K8S_NAMESPACE_PROD }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy monitoring to prod
+        env:
+          GRAFANA_CLOUD_REMOTE_WRITE_URL: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_URL }}
+          GRAFANA_CLOUD_REMOTE_WRITE_USERNAME: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_USERNAME }}
+          GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD: ${{ secrets.GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD }}
+        run: |
+          helm upgrade --install fcstask-monitoring ./helm/fcstask-monitoring \
+            --namespace ${{ env.K8S_NAMESPACE_PROD }} \
+            --set global.cluster=fcstask-prod \
+            --set global.env=prod \
+            --set scrape.backend.host=fcsapp.fcstask-backend.svc.cluster.local \
+            --set grafanaCloud.remoteWriteUrl="$GRAFANA_CLOUD_REMOTE_WRITE_URL" \
+            --set grafanaCloud.remoteWriteUsername="$GRAFANA_CLOUD_REMOTE_WRITE_USERNAME" \
+            --set-string grafanaCloud.remoteWritePassword="$GRAFANA_CLOUD_REMOTE_WRITE_PASSWORD" \
+            --wait \
+            --timeout 5m
