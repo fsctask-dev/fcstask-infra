@@ -1,0 +1,33 @@
+global:
+  cluster: fcstask-prod
+  env: prod
+
+grafanaCloud:
+  remoteWriteUrl: ""
+  remoteWriteUsername: ""
+  remoteWritePassword: ""
+
+prometheus:
+  image:
+    repository: prom/prometheus
+    tag: v3.5.0
+    pullPolicy: IfNotPresent
+  retention: 7d
+  retentionSize: 5GB
+
+alertmanager:
+  image:
+    repository: quay.io/prometheus/alertmanager
+    tag: v0.28.1
+    pullPolicy: IfNotPresent
+
+scrape:
+  backend:
+    host: fcsapp.fcstask-backend.svc.cluster.local
+    port: 8081
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fcstask-monitoring.alertmanager.fullname" . }}
+  labels:
+    {{- include "fcstask-monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+data:
+  alertmanager.yml: |
+{{ .Files.Get "files/alertmanager.yml" | indent 4 }}
