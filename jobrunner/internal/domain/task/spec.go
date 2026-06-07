@@ -30,7 +30,7 @@ type TaskSpec struct {
     
     Reporting ReportingSpec `yaml:"reporting" json:"reporting"`
     
-    Manytask *ManytaskMetadata `yaml:"manytask" json:"manytask"`
+    Course *CourseMetadata `yaml:"course" json:"course"`
 }
 
 type Language string
@@ -66,7 +66,7 @@ type ReportingSpec struct {
     PassingThreshold float64 `yaml:"passing_threshold" json:"passing_threshold" validate:"min=0,max=100"`
 }
 
-type ManytaskMetadata struct {
+type CourseMetadata struct {
     CourseID string `yaml:"course_id" json:"course_id"`
     GroupID  string `yaml:"group_id" json:"group_id"`
 }
@@ -76,9 +76,11 @@ var validate *validator.Validate
 func init() {
     validate = validator.New()
     
-    validate.RegisterValidation("taskname", func(fl validator.FieldLevel) bool {
+    if err := validate.RegisterValidation("taskname", func(fl validator.FieldLevel) bool {
         return regexp.MustCompile(`^[a-z0-9-]+$`).MatchString(fl.Field().String())
-    })
+    }); err != nil {
+        panic(err)
+    }
 }
 
 func (t *TaskSpec) Validate() error {

@@ -84,9 +84,6 @@ type CheckerSubConfig struct {
 	ReportPipeline []PipelineStageConfig    `yaml:"report_pipeline,omitempty"`
 }
 
-type CheckerConfigBuilder struct {
-	config *CheckerConfig
-}
 
 func (c *CheckerConfig) SetDefaults() {
 	if c.Version == 0 {
