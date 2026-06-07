@@ -182,12 +182,12 @@ func loadCourse() (*checker.Course, *config.CheckerConfig, error) {
 		return filepath.Join(refDir, rel)
 	}
 
-	courseCfg, err := config.LoadConfig[config.CourseConfig, *config.CourseConfig](resolve(courseConfig, "course.yaml"))
+	courseCfg, err := config.LoadConfig[config.CourseConfig](resolve(courseConfig, "course.yaml"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("load course config: %w", err)
 	}
 
-	checkerCfg, err := config.LoadConfig[config.CheckerConfig, *config.CheckerConfig](resolve(checkerConfig, ".checker/config.yaml"))
+	checkerCfg, err := config.LoadConfig[config.CheckerConfig](resolve(checkerConfig, ".checker/config.yaml"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("load checker config: %w", err)
 	}
