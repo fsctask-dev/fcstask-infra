@@ -276,42 +276,6 @@ func (e *Exporter) ExportForTesting(target string) error {
 	return nil
 }
 
-func (e *Exporter) ExportForContribution(target string) error {
-	if err := os.MkdirAll(target, 0755); err != nil {
-		return errors.NewExportError(fmt.Sprintf("failed to create target directory: %v", err))
-	}
-
-	if err := e.copyFilesWithConfig(copyFilesOptions{
-		root:          e.repositoryRoot,
-		destination:   target,
-		cfg:           e.structureConfig,
-		copyPublic:    true,
-		copyPrivate:   false,
-		copyOther:     true,
-		fillTemplates: false,
-		globalRoot:    e.repositoryRoot,
-		globalDest:    target,
-	}); err != nil {
-		return err
-	}
-
-	if err := e.copyFilesWithConfig(copyFilesOptions{
-		root:          e.referenceRoot,
-		destination:   target,
-		cfg:           e.structureConfig,
-		copyPublic:    false,
-		copyPrivate:   true,
-		copyOther:     true,
-		fillTemplates: false,
-		globalRoot:    e.referenceRoot,
-		globalDest:    target,
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (e *Exporter) ExportPrivate(target string) error {
 	if err := os.MkdirAll(target, 0755); err != nil {
 		return errors.NewExportError(fmt.Sprintf("failed to create target directory: %v", err))

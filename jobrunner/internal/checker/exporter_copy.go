@@ -225,20 +225,24 @@ func copyFile(source, destination string) error {
 	if err != nil {
 		return err
 	}
-	defer src.Close()
+	defer func() { _ = src.Close() }()
 
 	dst, err := os.Create(destination)
 	if err != nil {
 		return err
 	}
-	defer dst.Close()
 
 	if _, err = io.Copy(dst, src); err != nil {
+		_ = dst.Close()
+		return err
+	}
+
+	if err = dst.Close(); err != nil {
 		return err
 	}
 
 	if info, err := os.Stat(source); err == nil {
-		os.Chmod(destination, info.Mode())
+		_ = os.Chmod(destination, info.Mode())
 	}
 
 	return nil

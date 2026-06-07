@@ -28,7 +28,7 @@ func (e *Exporter) processTemplateComments(source, destination string) error {
 	}
 
 	if info, err := os.Stat(source); err == nil {
-		os.Chmod(destination, info.Mode())
+		_ = os.Chmod(destination, info.Mode())
 	}
 
 	return nil
