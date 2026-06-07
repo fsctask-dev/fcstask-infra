@@ -137,11 +137,17 @@ func (r *PipelineRunner) Run(ctx map[string]any, dryRun bool) (*PipelineResult, 
 
 		if skipTheRest {
 			stageResults = append(stageResults, PipelineStageResult{Name: stage.Name, Skipped: true})
+			if r.verbose {
+				fmt.Printf("  -- %s (skipped)\n", stage.Name)
+			}
 			continue
 		}
 
 		if !runIf {
 			stageResults = append(stageResults, PipelineStageResult{Name: stage.Name, Skipped: true})
+			if r.verbose {
+				fmt.Printf("  -- %s (run_if=false)\n", stage.Name)
+			}
 			continue
 		}
 
@@ -153,7 +159,14 @@ func (r *PipelineRunner) Run(ctx map[string]any, dryRun bool) (*PipelineResult, 
 			if stage.RegisterOutput != nil {
 				registerOutput(ctx, *stage.RegisterOutput, result)
 			}
+			if r.verbose {
+				fmt.Printf("  ** %s (dry-run)\n", stage.Name)
+			}
 			continue
+		}
+
+		if r.verbose {
+			fmt.Printf("  >> %s\n", stage.Name)
 		}
 
 		start := time.Now()
@@ -168,6 +181,11 @@ func (r *PipelineRunner) Run(ctx map[string]any, dryRun bool) (*PipelineResult, 
 			if pef, ok := pluginErr.(*domainerrors.PluginExecutionFailed); ok {
 				outStr = pef.Output
 				percentage = pef.Percentage
+			}
+
+			if r.verbose {
+				printVerboseOutput(outStr)
+				fmt.Printf("  FAIL %s (%.2fs)\n", stage.Name, elapsed)
 			}
 
 			result := PipelineStageResult{
@@ -197,6 +215,11 @@ func (r *PipelineRunner) Run(ctx map[string]any, dryRun bool) (*PipelineResult, 
 				}
 			}
 		} else {
+			if r.verbose {
+				printVerboseOutput(output.Output)
+				fmt.Printf("  OK   %s (%.2fs)\n", stage.Name, elapsed)
+			}
+
 			result := PipelineStageResult{
 				Name:        stage.Name,
 				Output:      output.Output,
@@ -226,6 +249,15 @@ func (r *PipelineRunner) resolveArgs(args map[string]any, ctx map[string]any) (m
 		return nil, domainerrors.NewBadConfig("args resolved to non-map type")
 	}
 	return result, nil
+}
+
+func printVerboseOutput(output string) {
+	if output == "" {
+		return
+	}
+	for _, line := range strings.Split(strings.TrimRight(output, "\n"), "\n") {
+		fmt.Printf("     %s\n", line)
+	}
 }
 
 func registerOutput(ctx map[string]any, name string, result PipelineStageResult) {
