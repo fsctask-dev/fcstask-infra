@@ -25,6 +25,7 @@ type TaskPipelineVariables struct {
 	TaskName         string  `json:"task_name"`
 	TaskSubPath      string  `json:"task_sub_path"`
 	TaskScorePercent float64 `json:"task_score_percent"`
+	TaskPassed       bool    `json:"task_passed"`
 }
 
 type percentStep struct {
@@ -197,13 +198,16 @@ func (t *Tester) runSingleTask(
 		return taskRunResult{name: task.Name, failed: true}
 	}
 
+	taskVars.TaskPassed = true
+	reportCtx := t.buildContext(globalVars, &taskVars, taskOutputs, task.Config.Parameters)
+
 	reportRunner, err := t.getReportPipelineRunner(task)
 	if err != nil {
 		return taskRunResult{name: task.Name, err: err}
 	}
 
 	reportDryRun := t.dryRun || !report
-	if _, err = reportRunner.Run(ctx, reportDryRun); err != nil {
+	if _, err = reportRunner.Run(reportCtx, reportDryRun); err != nil {
 		return taskRunResult{name: task.Name, err: err}
 	}
 

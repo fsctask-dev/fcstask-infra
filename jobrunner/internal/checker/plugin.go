@@ -20,9 +20,9 @@ type PluginRegistry map[string]Plugin
 
 func DefaultRegistry() PluginRegistry {
 	return PluginRegistry{
-		"run_script":            &RunScriptPlugin{},
-		"run_tests":             &RunTestsPlugin{},
-		"report_score_manytask": &ReportScoreManytaskPlugin{},
+		"run_script":   &RunScriptPlugin{},
+		"run_tests":    &RunTestsPlugin{},
+		"report_score": &ReportScorePlugin{},
 	}
 }
 
