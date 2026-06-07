@@ -111,6 +111,9 @@ func (t *Tester) Run(tempDir string, tasks []FileSystemTask, report bool, timest
 	}
 
 	if t.globalPipeline.Len() > 0 {
+		if t.verbose {
+			fmt.Println("=== global pipeline ===")
+		}
 		ctx := t.buildContext(globalVars, nil, globalOutputs, nil)
 		result, err := t.globalPipeline.Run(ctx, t.dryRun)
 		if err != nil {
@@ -189,6 +192,10 @@ func (t *Tester) runSingleTask(
 		return taskRunResult{name: task.Name, err: err}
 	}
 
+	if t.verbose {
+		fmt.Printf("=== task: %s ===\n", task.Name)
+	}
+
 	taskResult, err := taskRunner.Run(ctx, t.dryRun)
 	if err != nil {
 		return taskRunResult{name: task.Name, err: err}
@@ -204,6 +211,10 @@ func (t *Tester) runSingleTask(
 	reportRunner, err := t.getReportPipelineRunner(task)
 	if err != nil {
 		return taskRunResult{name: task.Name, err: err}
+	}
+
+	if t.verbose && reportRunner.Len() > 0 {
+		fmt.Printf("=== report: %s ===\n", task.Name)
 	}
 
 	reportDryRun := t.dryRun || !report
