@@ -3,7 +3,6 @@ package checker
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -53,7 +52,7 @@ func (p *RunScriptPlugin) Run(args map[string]any, verbose bool) (*PluginOutput,
 		if err != nil {
 			return nil, errors.NewBadConfig(fmt.Sprintf("failed to open input file: %v", err))
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		cmd.Stdin = f
 	}
 
@@ -177,20 +176,18 @@ func parseJUnitXML(data []byte) (total, failed int, err error) {
 	return
 }
 
-type ReportScoreManytaskPlugin struct{}
+type ReportScorePlugin struct{}
 
-type reportScoreManytaskArgs struct {
-	Username      string   `json:"username"`
-	TaskName      string   `json:"task_name"`
-	Score         *float64 `json:"score"`
-	ReportURL     string   `json:"report_url"`
-	ReportToken   string   `json:"report_token"`
-	CheckDeadline bool     `json:"check_deadline"`
-	SendTime      *string  `json:"send_time,omitempty"`
+type reportScorePluginArgs struct {
+	Username    string  `json:"username"`
+	TaskName    string  `json:"task_name"`
+	ReportURL   string  `json:"report_url"`
+	ReportToken string  `json:"report_token"`
+	SendTime    *string `json:"send_time,omitempty"`
 }
 
-func (p *ReportScoreManytaskPlugin) Run(args map[string]any, verbose bool) (*PluginOutput, error) {
-	a, err := parseArgs[reportScoreManytaskArgs](args)
+func (p *ReportScorePlugin) Run(args map[string]any, verbose bool) (*PluginOutput, error) {
+	a, err := parseArgs[reportScorePluginArgs](args)
 	if err != nil {
 		return nil, err
 	}
@@ -204,19 +201,16 @@ func (p *ReportScoreManytaskPlugin) Run(args map[string]any, verbose bool) (*Plu
 	form.Set("token", a.ReportToken)
 	form.Set("task", a.TaskName)
 	form.Set("username", a.Username)
-	form.Set("check_deadline", fmt.Sprintf("%t", a.CheckDeadline))
 	form.Set("submit_time", sendTime)
-	if a.Score != nil {
-		form.Set("score", fmt.Sprintf("%g", *a.Score))
-	}
+	form.Set("status", "pass")
 
 	resp, err := http.PostForm(a.ReportURL, form)
 	if err != nil {
 		return nil, errors.NewPluginExecutionFailed(
-			fmt.Sprintf("failed to post score: %v", err), "", 0,
+			fmt.Sprintf("failed to report status: %v", err), "", 0,
 		)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
@@ -225,15 +219,10 @@ func (p *ReportScoreManytaskPlugin) Run(args map[string]any, verbose bool) (*Plu
 		)
 	}
 
-	output := fmt.Sprintf("reported task=%s user=%s score=%v", a.TaskName, a.Username, a.Score)
-	var result map[string]any
-	if json.Unmarshal(body, &result) == nil {
-		if score, ok := result["score"]; ok {
-			output += fmt.Sprintf(" -> result_score=%v", score)
-		}
-	}
-
-	return &PluginOutput{Output: output, Percentage: 1.0}, nil
+	return &PluginOutput{
+		Output:     fmt.Sprintf("reported task=%s user=%s status=pass", a.TaskName, a.Username),
+		Percentage: 1.0,
+	}, nil
 }
 
 func buildCommand(ctx context.Context, script any) (*exec.Cmd, error) {

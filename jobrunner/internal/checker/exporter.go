@@ -2,11 +2,8 @@ package checker
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/go-git/go-git/v5"

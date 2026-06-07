@@ -68,11 +68,11 @@ func gradeCmd() *cobra.Command {
 		Use:   "grade",
 		Short: "Detect changed tasks and run tests (student CI)",
 		Long: `Detect tasks changed in the last commit and run the test pipeline.
-With --submit-score, runs the report pipeline and submits scores to manytask.
+With --submit-score, runs the report pipeline and submits scores.
 
 Environment variables used by the report pipeline:
-  GITLAB_USER_LOGIN   student username passed to report_score_manytask
-  TESTER_TOKEN        authentication token for the manytask server
+  GITLAB_USER_LOGIN   student username passed to report_score
+  TESTER_TOKEN        authentication token for the server
 
 Examples:
   checker grade --ref-dir /opt/shad
@@ -97,7 +97,7 @@ Examples:
 	}
 
 	cmd.Flags().BoolVar(&submitScore, "submit-score", false,
-		"run report pipeline and submit score to manytask after passing")
+		"run report pipeline and submit score after passing")
 	return cmd
 }
 
@@ -109,7 +109,7 @@ func checkCmd() *cobra.Command {
 		Use:   "check",
 		Short: "Run task tests without reporting (tutor CI or local)",
 		Long: `Run tests for a specific task, all enabled tasks, or detect changes.
-Does not submit scores to manytask.
+Does not submit scores.
 
 Examples:
   checker check --ref-dir ./ref-repo --task hello_world --verbose
@@ -163,7 +163,7 @@ func runTester(course *checker.Course, checkerCfg *config.CheckerConfig, tasks [
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	now := time.Now()
 	if err := tester.Run(tempDir, tasks, report, &now); err != nil {
@@ -182,12 +182,12 @@ func loadCourse() (*checker.Course, *config.CheckerConfig, error) {
 		return filepath.Join(refDir, rel)
 	}
 
-	courseCfg, err := config.LoadConfig[config.CourseConfig, *config.CourseConfig](resolve(courseConfig, "course.yaml"))
+	courseCfg, err := config.LoadConfig[config.CourseConfig](resolve(courseConfig, "course.yaml"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("load course config: %w", err)
 	}
 
-	checkerCfg, err := config.LoadConfig[config.CheckerConfig, *config.CheckerConfig](resolve(checkerConfig, ".checker/config.yaml"))
+	checkerCfg, err := config.LoadConfig[config.CheckerConfig](resolve(checkerConfig, ".checker/config.yaml"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("load checker config: %w", err)
 	}

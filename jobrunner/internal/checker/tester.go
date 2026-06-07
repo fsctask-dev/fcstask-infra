@@ -3,8 +3,10 @@ package checker
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"jobrunner/internal/config"
@@ -23,11 +25,18 @@ type TaskPipelineVariables struct {
 	TaskName         string  `json:"task_name"`
 	TaskSubPath      string  `json:"task_sub_path"`
 	TaskScorePercent float64 `json:"task_score_percent"`
+	TaskPassed       bool    `json:"task_passed"`
 }
 
 type percentStep struct {
 	Percent  float64
 	Deadline time.Time
+}
+
+type taskRunResult struct {
+	name   string
+	failed bool
+	err    error
 }
 
 type Tester struct {
@@ -41,6 +50,7 @@ type Tester struct {
 	taskToPercents      map[string][]percentStep
 	deadlinesType       string
 	interpolationWindow float64
+	maxConcurrency      int
 }
 
 func NewTester(
@@ -80,6 +90,7 @@ func NewTester(
 		taskToPercents:      taskToPercents,
 		deadlinesType:       course.CourseConfig.Deadlines.Deadlines,
 		interpolationWindow: float64(window) * 24 * 3600,
+		maxConcurrency:      runtime.NumCPU(),
 	}, nil
 }
 
@@ -89,7 +100,7 @@ func (t *Tester) Run(tempDir string, tasks []FileSystemTask, report bool, timest
 		tasks = t.course.GetTasks(&enabled)
 	}
 
-	outputs := make(map[string]any)
+	globalOutputs := make(map[string]any)
 
 	globalVars := GlobalPipelineVariables{
 		RefDir:       t.course.ReferenceRoot,
@@ -100,7 +111,7 @@ func (t *Tester) Run(tempDir string, tasks []FileSystemTask, report bool, timest
 	}
 
 	if t.globalPipeline.Len() > 0 {
-		ctx := t.buildContext(globalVars, nil, outputs, nil)
+		ctx := t.buildContext(globalVars, nil, globalOutputs, nil)
 		result, err := t.globalPipeline.Run(ctx, t.dryRun)
 		if err != nil {
 			return err
@@ -110,45 +121,31 @@ func (t *Tester) Run(tempDir string, tasks []FileSystemTask, report bool, timest
 		}
 	}
 
-	var failedTasks []string
+	results := make(chan taskRunResult, len(tasks))
+	sem := make(chan struct{}, t.maxConcurrency)
 
+	var wg sync.WaitGroup
 	for _, task := range tasks {
-		var ts time.Time
-		if timestamp != nil {
-			ts = *timestamp
-		} else {
-			ts = t.course.CourseConfig.Deadlines.GetNowWithTimezone()
-		}
+		wg.Add(1)
+		task := task
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			results <- t.runSingleTask(task, globalVars, globalOutputs, report, timestamp)
+		}()
+	}
 
-		scorePercent := t.GetTaskScorePercent(task.Name, ts)
-		taskVars := TaskPipelineVariables{
-			TaskName:         task.Name,
-			TaskSubPath:      task.RelativePath,
-			TaskScorePercent: scorePercent,
-		}
+	wg.Wait()
+	close(results)
 
-		ctx := t.buildContext(globalVars, &taskVars, outputs, task.Config.Parameters)
-
-		taskRunner, err := t.getTaskPipelineRunner(task)
-		if err != nil {
-			return err
+	var failedTasks []string
+	for r := range results {
+		if r.err != nil {
+			return r.err
 		}
-		taskResult, err := taskRunner.Run(ctx, t.dryRun)
-		if err != nil {
-			return err
-		}
-
-		if taskResult.Succeeded() {
-			reportRunner, err := t.getReportPipelineRunner(task)
-			if err != nil {
-				return err
-			}
-			reportDryRun := t.dryRun || !report
-			if _, err = reportRunner.Run(ctx, reportDryRun); err != nil {
-				return err
-			}
-		} else {
-			failedTasks = append(failedTasks, task.Name)
+		if r.failed {
+			failedTasks = append(failedTasks, r.name)
 		}
 	}
 
@@ -157,6 +154,64 @@ func (t *Tester) Run(tempDir string, tasks []FileSystemTask, report bool, timest
 	}
 
 	return nil
+}
+
+func (t *Tester) runSingleTask(
+	task FileSystemTask,
+	globalVars GlobalPipelineVariables,
+	globalOutputs map[string]any,
+	report bool,
+	timestamp *time.Time,
+) taskRunResult {
+	taskOutputs := make(map[string]any, len(globalOutputs))
+	for k, v := range globalOutputs {
+		taskOutputs[k] = v
+	}
+
+	var ts time.Time
+	if timestamp != nil {
+		ts = *timestamp
+	} else {
+		ts = t.course.CourseConfig.Deadlines.GetNowWithTimezone()
+	}
+
+	scorePercent := t.GetTaskScorePercent(task.Name, ts)
+	taskVars := TaskPipelineVariables{
+		TaskName:         task.Name,
+		TaskSubPath:      task.RelativePath,
+		TaskScorePercent: scorePercent,
+	}
+
+	ctx := t.buildContext(globalVars, &taskVars, taskOutputs, task.Config.Parameters)
+
+	taskRunner, err := t.getTaskPipelineRunner(task)
+	if err != nil {
+		return taskRunResult{name: task.Name, err: err}
+	}
+
+	taskResult, err := taskRunner.Run(ctx, t.dryRun)
+	if err != nil {
+		return taskRunResult{name: task.Name, err: err}
+	}
+
+	if !taskResult.Succeeded() {
+		return taskRunResult{name: task.Name, failed: true}
+	}
+
+	taskVars.TaskPassed = true
+	reportCtx := t.buildContext(globalVars, &taskVars, taskOutputs, task.Config.Parameters)
+
+	reportRunner, err := t.getReportPipelineRunner(task)
+	if err != nil {
+		return taskRunResult{name: task.Name, err: err}
+	}
+
+	reportDryRun := t.dryRun || !report
+	if _, err = reportRunner.Run(reportCtx, reportDryRun); err != nil {
+		return taskRunResult{name: task.Name, err: err}
+	}
+
+	return taskRunResult{name: task.Name}
 }
 
 func (t *Tester) buildContext(

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "fcstask-monitoring.prometheus.fullname" . }}
+  labels:
+    {{- include "fcstask-monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "fcstask-monitoring.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
